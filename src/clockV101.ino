@@ -1105,6 +1105,25 @@ void smart_config()
   writeWifiConf();
 }
 
+void setUpOverTheAirProgramming() // OAT升级
+{
+
+  // Change OTA port.
+  // Default: 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Change the name of how it is going to
+  // show up in Arduino IDE.
+  // Default: esp8266-[ChipID]
+  // ArduinoOTA.setHostname("myesp8266");
+
+  // Re-programming passowrd.
+  // No password by default.
+  // ArduinoOTA.setPassword("123");
+
+  ArduinoOTA.begin();
+}
+
 void setup()
 {
   Serial.begin(115200); // 初始化串口
@@ -1118,6 +1137,8 @@ void setup()
   EEPROM.begin(512);
   readWifiConf();
   connect_wifi(); // 联网处理
+
+  setUpOverTheAirProgramming(); // 开启OTA升级服务
 
   Serial.println("Starting UDP"); // 连接时间服务器
   Udp.begin(localPort);
@@ -1169,7 +1190,8 @@ void loop()
     LastTime2 = millis();
     getCityWeater();
   }
-  scrollBanner(); // 天气数据滚动显示
-  // imgAnim();                                      //太空人显示
-  imgDisplay(); // 龙猫动画
+  scrollBanner(); // 天气数据滚动显示 //该函数执行时，会使imgDisplay的动画卡顿一下
+  imgDisplay();   // 龙猫动画
+
+  ArduinoOTA.handle(); // OTA升级
 }

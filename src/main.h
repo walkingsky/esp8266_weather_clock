@@ -11,6 +11,7 @@
 #include <TJpg_Decoder.h>
 #include <WIFIClient.h>
 #include <EEPROM.h>
+#include <ArduinoOTA.h>
 
 #include "font/ZdyLwFont_20.h" //字体头文件
 #include "font/FxLED_32.h"
