@@ -7,25 +7,69 @@
 
 #define VERSION "V101"
 
+struct WifiConf
+{
+  char wifi_ssid[50];
+  char wifi_password[50];
+  // Make sure that there is a 0
+  // that terminatnes the c string
+  // if memory is not initalized yet.
+  char cstr_terminator = 0; // makse sure
+};
+WifiConf wifiConf;
+
+void readWifiConf() // 读取wifi配置
+{
+  // Read wifi conf from flash
+  for (int i = 0; i < sizeof(wifiConf); i++)
+  {
+    ((char *)(&wifiConf))[i] = char(EEPROM.read(i));
+  }
+  // Make sure that there is a 0
+  // that terminatnes the c string
+  // if memory is not initalized yet.
+  wifiConf.cstr_terminator = 0;
+}
+
+void writeWifiConf() // 保存wifi配置
+{
+  for (int i = 0; i < sizeof(wifiConf); i++)
+  {
+    EEPROM.write(i, ((char *)(&wifiConf))[i]);
+  }
+  EEPROM.commit();
+}
+
 void connect_wifi() // 联网
 {
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD); // 用固定的账号密码连接网络
-
+  WiFi.begin(wifiConf.wifi_ssid, wifiConf.wifi_password); // 用固定的账号密码连接网络
+  uint8_t cnt = 0;                                        // 连接wifi的时间控制计数
   while (WiFi.status() != WL_CONNECTED)
   { // 未连接上的话
     for (uint8_t n = 0; n < 10; n++)
     { // 每500毫秒检测一次状态
       PowerOn_Loading(50);
     }
+    cnt = cnt + 1;
+    Serial.print("cnt:");
+    Serial.println(cnt);
+    if (cnt > wifi_connect_cnt)
+    {
+      Serial.print("\n超过重试次数");
+      break;
+    }
   }
+  if (cnt > wifi_connect_cnt)
+    smart_config();
+
   while (loadNum < 194)
   { // 让动画走完
     PowerOn_Loading(1);
   }
 
   Serial.print("\nWiFi connected to: ");
-  Serial.println(WIFI_SSID);
+  Serial.println(wifiConf.wifi_ssid);
   Serial.print("IP:   ");
   Serial.println(WiFi.localIP()); // 得到IP地址
 }
@@ -1054,8 +1098,11 @@ void smart_config()
 
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP()); // 串口输出现在的IP地址
-  WiFi.mode(WIFI_AP_STA);         // 这里将模式设置回AP和STA双模式，不设置亲测也是可以的，但是不能只设置为AP模式，要不然联网后没办法连上互联网。
+  // WiFi.mode(WIFI_AP_STA);         // 这里将模式设置回AP和STA双模式，不设置亲测也是可以的，但是不能只设置为AP模式，要不然联网后没办法连上互联网。
   delay(5);
+  strcpy(wifiConf.wifi_ssid, WiFi.SSID().c_str());
+  strcpy(wifiConf.wifi_password, WiFi.psk().c_str());
+  writeWifiConf();
 }
 
 void setup()
@@ -1068,6 +1115,8 @@ void setup()
   tft.fillScreen(0x0000);                // 清屏
   tft.setTextColor(frontColor, bgColor); // 设置字体颜色
 
+  EEPROM.begin(512);
+  readWifiConf();
   connect_wifi(); // 联网处理
 
   Serial.println("Starting UDP"); // 连接时间服务器
