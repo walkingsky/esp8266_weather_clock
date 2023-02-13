@@ -52,8 +52,8 @@ void connect_wifi() // 联网
       PowerOn_Loading(50);
     }
     cnt = cnt + 1;
-    Serial.print("cnt:");
-    Serial.println(cnt);
+    // Serial.print("cnt:");
+    // Serial.println(cnt);
     if (cnt > wifi_connect_cnt)
     {
       Serial.print("\n超过重试次数");
@@ -411,15 +411,25 @@ void scrollBanner() // 天气滚动条显示
     { // 如果滚动显示缓冲区有数据
       clkb.setColorDepth(8);
       clkb.loadFont(ZdyLwFont_20); // 加载汉字字体
-
-      for (int pos = 24; pos > 0; pos--)
+      // 循环，7循环数，是因为一次Dis_Scroll调用大概占用7ms，7次调用大概等于一个动画显示的延时50ms
+      // 如果一个动画帧延时100，则要设置 100/7 约为14或15
+      for (int a = 0; a < 7; pos--, a++)
       { // 24点，每次移动一个点，从下往上移
-        Dis_Scroll(pos);
+        if (pos > 0)
+          Dis_Scroll(pos);
+        else
+        {
+          pos = 24;
+          break;
+        }
       }
-
-      // clkb.deleteSprite();                      //删除Sprite，这个我移动到Dis_Scroll函数里了
+      if (pos > 0 && pos != 24) // 大于0，说明没有循环完，但是要退出显示动画图片，回来还要继续移动
+      {
+        // clkb.deleteSprite();                      //删除Sprite，这个我移动到Dis_Scroll函数里了
+        clkb.unloadFont(); // 卸载字体
+        return;
+      }
       clkb.unloadFont(); // 卸载字体
-
       if (Dis_Count >= 5)
       {                // 总共显示五条信息
         Dis_Count = 0; // 回第一个
@@ -435,7 +445,8 @@ void scrollBanner() // 天气滚动条显示
 }
 
 void Dis_Scroll(int pos)
-{                             // 字体滚动
+{ // 字体滚动
+  Serial.println(millis());
   clkb.createSprite(148, 24); // 创建Sprite，先在Sprite内存中画点，然后将内存中的点一次推向屏幕，这样刷新比较快
   clkb.fillSprite(bgColor);   // 背景色
   clkb.setTextWrap(false);

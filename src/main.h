@@ -45,6 +45,7 @@ TFT_eSprite clkb = TFT_eSprite(&tft); // 字体滚动用
 
 bool wifiConnected = false;    // wifi 是否连接上的标记
 uint8_t SmartConfigStatus = 0; // 是否在smartconfig自动配网状态，0，未开始，1，等待配置 2，收到配置，连接wifi，3 连接wifi配置错误 ，4。wifi正常连接
+int pos = 24;                  // 天气信息滚动使用的字体位置变量。提升成全局变量，解决动画播放卡顿问题
 
 HTTPClient httpClient;            // 创建 HTTPClient 对象
 WiFiClient wifiClient;            // 创建WIFIClient对象，新版的HTTPClient要使用
