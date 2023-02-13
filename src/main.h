@@ -43,12 +43,15 @@ TFT_eSprite clkb = TFT_eSprite(&tft); // 字体滚动用
 // const char *WIFI_SSID = "ChinaNet-www"; // 家里无线路由器的账号和密码，----------要修改成自己的----------，引号不要去掉
 // const char *WIFI_PASSWORD = "PCbp#mn3h80ID&Pk";
 
+bool wifiConnected = false;    // wifi 是否连接上的标记
+uint8_t SmartConfigStatus = 0; // 是否在smartconfig自动配网状态，0，未开始，1，等待配置 2，收到配置，连接wifi，3 连接wifi配置错误 ，4。wifi正常连接
+
 HTTPClient httpClient;            // 创建 HTTPClient 对象
 WiFiClient wifiClient;            // 创建WIFIClient对象，新版的HTTPClient要使用
 uint8_t loadNum = 6;              // 开机启动进度条的起始位置
 uint16_t frontColor = TFT_YELLOW; // 背景颜色
 uint16_t bgColor = TFT_BLACK;     // 前景颜色
-String cityCode = "101010100";    // 天气城市代码
+String cityCode = "101010100";    // 天气城市代码 //通过geo服务自动获取城市后，这个设置可以随便配置了
 uint8_t Dis_Count = 0;            // 滚动显示内容计数
 String scrollText[6];             // 滚动显示的数据缓冲区
 

@@ -61,8 +61,17 @@ void connect_wifi() // 联网
     }
   }
   if (cnt > wifi_connect_cnt)
-    smart_config();
-
+  {
+    SmartConfigStatus = 0; // 设置mart config状态
+    while (true)
+    {
+      bool success = smart_config();
+      if (success == true)
+        break;
+    }
+  }
+  SmartConfigStatus = 4;
+  wifiConnected = true; // 设置wifi连接状态
   while (loadNum < 194)
   { // 让动画走完
     PowerOn_Loading(1);
@@ -1056,14 +1065,32 @@ void PowerOn_Loading(uint8_t delayTime) // 开机联网显示的进度条，输�
   clk.createSprite(200, 50); // 创建Sprite
   clk.fillSprite(0x0000);    // 填充颜色
 
-  clk.drawRoundRect(0, 0, 200, 16, 8, 0xFFFF);      // 画一个圆角矩形
-  clk.fillRoundRect(3, 3, loadNum, 10, 5, 0xFFFF);  // 画一个填充的圆角矩形
-  clk.setTextDatum(CC_DATUM);                       // 显示对齐方式
-  clk.setTextColor(TFT_GREEN, 0x0000);              // 文本的前景色和背景色
-  clk.drawString("Connecting to WiFi", 100, 40, 2); // 显示文本
-  clk.pushSprite(20, 110);                          // Sprite中内容一次推向屏幕
-  clk.deleteSprite();                               // 删除Sprite
-  loadNum += 1;                                     // 进度条位置变化，直到加载完成
+  clk.drawRoundRect(0, 0, 200, 16, 8, 0xFFFF);     // 画一个圆角矩形
+  clk.fillRoundRect(3, 3, loadNum, 10, 5, 0xFFFF); // 画一个填充的圆角矩形
+  clk.setTextDatum(CC_DATUM);                      // 显示对齐方式
+  clk.setTextColor(TFT_GREEN, 0x0000);             // 文本的前景色和背景色
+  if (SmartConfigStatus == 1)
+    clk.drawString("Waiting for Config", 100, 40, 2);
+  else if (SmartConfigStatus == 2)
+    clk.drawString("Connecting to WiFi", 100, 40, 2);
+  else if (SmartConfigStatus == 4)
+    clk.drawString("WiFi Connected.", 100, 40, 2);
+  else
+    clk.drawString("Connecting to WiFi", 100, 40, 2);                    // 显示文本
+  clk.pushSprite(20, 110);                                               // Sprite中内容一次推向屏幕
+  clk.deleteSprite();                                                    // 删除Sprite
+  if (wifiConnected == false && loadNum > 160 && SmartConfigStatus == 0) // wifi没有连接时，进度条不再增长
+  {
+  }
+  else if (SmartConfigStatus != 0 && SmartConfigStatus != 4 && loadNum > 180) // 在smart config 状态时，进度条反复回退
+  {
+    loadNum = 161;
+  }
+  else
+  {
+    loadNum += 1;
+  }
+  // 进度条位置变化，直到加载完成
   if (loadNum >= 194)
   {
     loadNum = 194;
@@ -1072,30 +1099,48 @@ void PowerOn_Loading(uint8_t delayTime) // 开机联网显示的进度条，输�
 }
 
 // 自动配网
-void smart_config()
+bool smart_config()
 {
+  uint8 cnt = 1;
   WiFi.mode(WIFI_STA);     // 这里一定要将WIFI设置为客户端模式才能进行配网
   WiFi.beginSmartConfig(); // 将esp8266设置为智能配网模式
   Serial.println("Waiting for SmartConfig.");
+  SmartConfigStatus = 1;
   while (!WiFi.smartConfigDone())
   {
-    delay(500);
+    // delay(500);
+    for (uint8_t n = 0; n < 10; n++)
+    { // 每500毫秒检测一次状态
+      PowerOn_Loading(50);
+    }
     Serial.print(".");
   }
 
   Serial.println("");
   Serial.println("SmartConfig received.");
+  SmartConfigStatus = 2;
 
   // Wait for WiFi to connect to AP
   Serial.println("Waiting for WiFi");
   while (WiFi.status() != WL_CONNECTED)
   {
-    delay(500);
+    // delay(500);
+    for (uint8_t n = 0; n < 10; n++)
+    { // 每500毫秒检测一次状态
+      PowerOn_Loading(50);
+    }
+    cnt = cnt + 1;
+    if (cnt > wifi_connect_cnt / 2)
+    {
+      SmartConfigStatus = 3;
+      WiFi.stopSmartConfig(); // 停止smartconfig，为下一轮配置准备
+      return false;
+    }
     Serial.print(".");
   }
 
   Serial.println("WiFi Connected.");
-
+  SmartConfigStatus = 4;
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP()); // 串口输出现在的IP地址
   // WiFi.mode(WIFI_AP_STA);         // 这里将模式设置回AP和STA双模式，不设置亲测也是可以的，但是不能只设置为AP模式，要不然联网后没办法连上互联网。
@@ -1103,6 +1148,7 @@ void smart_config()
   strcpy(wifiConf.wifi_ssid, WiFi.SSID().c_str());
   strcpy(wifiConf.wifi_password, WiFi.psk().c_str());
   writeWifiConf();
+  return true;
 }
 
 void setUpOverTheAirProgramming() // OAT升级
