@@ -12,6 +12,8 @@
 #include <WIFIClient.h>
 #include <EEPROM.h>
 #include <ArduinoOTA.h>
+// #include <ds18b20.h>
+#include <PubSubClient.h> //mqtt库
 
 #include "font/ZdyLwFont_20.h" //字体头文件
 #include "font/FxLED_32.h"
@@ -72,8 +74,26 @@ unsigned long now1;     // 轮流滚动时间计时
 unsigned long LastTime1 = 0;
 unsigned long now2; // 定时获取天气
 unsigned long LastTime2 = 0;
+unsigned long LastTime3 = 0;
 unsigned long now3;
-unsigned long LastTime3 = 0; //
+unsigned long LastTime4 = 0; //
+
+//-------------------------mqtt 相关-----------
+// MQTT Broker
+const char *mqtt_broker = "www.walkingsky.top";
+const char *topic = "esp8266/#";
+const char *mqtt_username = "esp";
+const char *mqtt_password = "esp8266";
+const int mqtt_port = 1883;
+#define MQTT_TOPIC_PIC "esp8266/pic"
+#define MQTT_TOPIC_LED "esp8266/led"
+#define MQTT_TOPIC_CMD "esp8266/cmd"
+
+#define LED 16
+
+WiFiClient esp_client;
+
+PubSubClient mqtt_client(esp_client);
 
 time_t getNtpTime();
 void digitalClockDisplay();

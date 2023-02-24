@@ -406,7 +406,8 @@ void scrollBanner() // 天气滚动条显示
 {
   now1 = millis();
   if (now1 - LastTime1 > 2500)
-  { // 2.5秒切换一次显示内容
+  {
+    // 2.5秒切换一次显示内容
     if (scrollText[Dis_Count])
     { // 如果滚动显示缓冲区有数据
       clkb.setColorDepth(8);
@@ -445,8 +446,7 @@ void scrollBanner() // 天气滚动条显示
 }
 
 void Dis_Scroll(int pos)
-{ // 字体滚动
-  Serial.println(millis());
+{                             // 字体滚动
   clkb.createSprite(148, 24); // 创建Sprite，先在Sprite内存中画点，然后将内存中的点一次推向屏幕，这样刷新比较快
   clkb.fillSprite(bgColor);   // 背景色
   clkb.setTextWrap(false);
@@ -799,7 +799,7 @@ void imgDisplay()
     case 80:
       TJpgDec.drawJpg(x, y, img_79, sizeof(img_79));
       imgNum = 1;
-      Gif_Mode++;
+      // Gif_Mode++;
       break;
     }
   }
@@ -889,7 +889,7 @@ void imgDisplay()
     case 27:
       TJpgDec.drawJpg(x, y, pingpang_27, sizeof(pingpang_27));
       imgNum = 1;
-      Gif_Mode++;
+      // Gif_Mode++;
       break;
     }
   }
@@ -936,7 +936,7 @@ void imgDisplay()
     case 10:
       TJpgDec.drawJpg(x, y, i9, sizeof(i9));
       imgNum = 1;
-      Gif_Mode = 1;
+      // Gif_Mode = 1;
       break;
     }
   }
@@ -1064,7 +1064,7 @@ void imgDisplay()
     case 40:
       TJpgDec.drawJpg(x, 84, quan_39, sizeof(quan_39));
       imgNum = 1;
-      Gif_Mode++;
+      // Gif_Mode++;
       break;
     }
   }
@@ -1161,6 +1161,91 @@ bool smart_config()
   writeWifiConf();
   return true;
 }
+// 切换背景色，切换字体颜色
+void change_color()
+{
+  if (Gif_Mode == 5)
+  {
+    frontColor = TFT_YELLOW; // 背景颜色
+    bgColor = TFT_BLACK;     // 前景颜色
+  }
+  else
+  {
+    frontColor = TFT_BLACK; // 背景颜色
+    bgColor = 0xFFFF;       // 前景颜色
+  }
+
+  tft.fillScreen(0x0000);                // 清屏
+  tft.setTextColor(frontColor, bgColor); // 设置字体颜色
+
+  TJpgDec.drawJpg(0, 0, watchtop, sizeof(watchtop));         // 显示顶部图标 240*20
+  TJpgDec.drawJpg(0, 220, watchbottom, sizeof(watchbottom)); // 显示底部图标 240*20
+
+  // 绘制一个窗口
+  tft.setViewport(0, 20, 240, 200);              // 中间的显示区域大小
+  tft.fillScreen(0x0000);                        // 清屏
+  tft.fillRoundRect(0, 0, 240, 200, 5, bgColor); // 实心圆角矩形
+  // tft.resetViewport();
+
+  // 绘制线框
+  tft.drawFastHLine(0, 34, 240, frontColor); // 这些坐标都是窗体内部坐标
+  tft.drawFastVLine(150, 0, 34, frontColor);
+  tft.drawFastHLine(0, 166, 240, frontColor);
+  tft.drawFastVLine(60, 166, 34, frontColor);
+  tft.drawFastVLine(160, 166, 34, frontColor);
+
+  getCityCode(); // 通过IP地址获取城市代码
+
+  TJpgDec.drawJpg(161, 171, temperature, sizeof(temperature)); // 温度图标
+  TJpgDec.drawJpg(159, 130, humidity, sizeof(humidity));       // 湿度图标
+
+  digitalClockDisplay();
+}
+// mqtt 收到订阅消息后的回调函数
+void mqtt_callback(char *topic, byte *payload, unsigned int length)
+{
+  Serial.print("Message arrived in topic: ");
+  Serial.println(topic);
+  Serial.print("Message:");
+  Serial.printf("%s\n", (char *)payload);
+  if (0 == strcmp(topic, MQTT_TOPIC_PIC))
+  {
+    // 直接返回一个数值，用来控制显示的图片
+    if (length == 1 && ((int)payload[0] - 48) > 0 && ((int)payload[0] - 48) < 6)
+    {
+      int old_mode = Gif_Mode;
+      Gif_Mode = (int)payload[0] - 48;
+      if ((old_mode == 5 && Gif_Mode < 5) || (old_mode < 5 && Gif_Mode == 5))
+      {
+        // 切换背景色，切换字体颜色
+        change_color();
+      }
+    }
+    Serial.printf("length:%d,Gif_Mode:%d\n", length, Gif_Mode);
+  }
+  else if (0 == strcmp(topic, MQTT_TOPIC_LED))
+  {
+    String message;
+    for (int i = 0; i < length; i++)
+    {
+      message = message + (char)payload[i]; // convert *byte to string
+    }
+    Serial.print(message);
+    if (message == "on")
+    {
+      digitalWrite(LED, LOW);
+    } // LED on
+    if (message == "off")
+    {
+      digitalWrite(LED, HIGH);
+    } // LED off
+    Serial.println();
+    Serial.println("-----------------------");
+  }
+  else if (0 == strcmp(topic, MQTT_TOPIC_LED))
+  {
+  }
+}
 
 void setUpOverTheAirProgramming() // OAT升级
 {
@@ -1194,6 +1279,27 @@ void setup()
   EEPROM.begin(512);
   readWifiConf();
   connect_wifi(); // 联网处理
+
+  // 连接mqtt服务器
+  mqtt_client.setServer(mqtt_broker, mqtt_port);
+  mqtt_client.setCallback(mqtt_callback);
+  while (!mqtt_client.connected())
+  {
+    String client_id = "esp8266-client-";
+    client_id += String(WiFi.macAddress());
+    Serial.printf("The client %s connects to the public mqtt broker\n", client_id.c_str());
+    if (mqtt_client.connect(client_id.c_str(), mqtt_username, mqtt_password))
+    {
+      Serial.println("Public emqx mqtt broker connected");
+    }
+    else
+    {
+      Serial.print("failed with state ");
+      Serial.print(mqtt_client.state());
+      delay(2000);
+    }
+  }
+  mqtt_client.subscribe(topic);
 
   setUpOverTheAirProgramming(); // 开启OTA升级服务
 
@@ -1251,4 +1357,13 @@ void loop()
   imgDisplay();   // 龙猫动画
 
   ArduinoOTA.handle(); // OTA升级
+
+  if (millis() - LastTime4 > 2000) // 2秒钟更新温度
+  {
+    // ds18b20_getTemperature(); // 读取温度
+    LastTime4 = millis();
+  }
+
+  // mqtt
+  mqtt_client.loop();
 }
