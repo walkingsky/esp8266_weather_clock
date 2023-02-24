@@ -15,6 +15,7 @@ struct WifiConf
   // that terminatnes the c string
   // if memory is not initalized yet.
   char cstr_terminator = 0; // makse sure
+  u_int8_t gif_mode;
 };
 WifiConf wifiConf;
 
@@ -1215,10 +1216,14 @@ void mqtt_callback(char *topic, byte *payload, unsigned int length)
     {
       int old_mode = Gif_Mode;
       Gif_Mode = (int)payload[0] - 48;
+      imgNum = 1;
       if ((old_mode == 5 && Gif_Mode < 5) || (old_mode < 5 && Gif_Mode == 5))
       {
         // 切换背景色，切换字体颜色
         change_color();
+        // 保存 Gif_Mode 到eeprom
+        wifiConf.gif_mode = Gif_Mode;
+        writeWifiConf();
       }
     }
     Serial.printf("length:%d,Gif_Mode:%d\n", length, Gif_Mode);
@@ -1279,6 +1284,18 @@ void setup()
   EEPROM.begin(512);
   readWifiConf();
   connect_wifi(); // 联网处理
+
+  Gif_Mode = wifiConf.gif_mode;
+  if (Gif_Mode == 5)
+  {
+    frontColor = TFT_YELLOW; // 背景颜色
+    bgColor = TFT_BLACK;     // 前景颜色
+  }
+  else
+  {
+    frontColor = TFT_BLACK; // 背景颜色
+    bgColor = 0xFFFF;       // 前景颜色
+  }
 
   // 连接mqtt服务器
   mqtt_client.setServer(mqtt_broker, mqtt_port);
