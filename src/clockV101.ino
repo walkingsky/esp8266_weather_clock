@@ -1273,11 +1273,26 @@ void handleRoot()
   htmlCode += "     <p>\n<form action=\"/gifmode\" method=\"POST\">\n";
   htmlCode += "       <a>设置动图样式：</a>\n";
   htmlCode += "     	<select name=\"gifmode\">\n";
-  htmlCode += "   		<option value=\"1\">乒乓球</option>\n";
-  htmlCode += "   		<option value=\"2\">跳绳的龙猫</option>\n";
-  htmlCode += "   		<option value=\"3\">跳舞的龙猫</option>\n";
-  htmlCode += "   		<option value=\"4\">太空人</option>\n";
-  htmlCode += "   		<option value=\"5\">跑步的老头</option>\n";
+  if (Gif_Mode == 1)
+    htmlCode += "   		<option value=\"1\" selected>乒乓球</option>\n";
+  else
+    htmlCode += "   		<option value=\"1\">乒乓球</option>\n";
+  if (Gif_Mode == 2)
+    htmlCode += "   		<option value=\"2\" selected>跳绳的龙猫</option>\n";
+  else
+    htmlCode += "   		<option value=\"2\">跳绳的龙猫</option>\n";
+  if (Gif_Mode == 3)
+    htmlCode += "   		<option value=\"3\" selected>跳舞的龙猫</option>\n";
+  else
+    htmlCode += "   		<option value=\"3\">跳舞的龙猫</option>\n";
+  if (Gif_Mode == 4)
+    htmlCode += "   		<option value=\"4\" selected>太空人</option>\n";
+  else
+    htmlCode += "   		<option value=\"4\">太空人</option>\n";
+  if (Gif_Mode == 5)
+    htmlCode += "   		<option value=\"5\" selected>跑步的老头</option>\n";
+  else
+    htmlCode += "   		<option value=\"5\">跑步的老头</option>\n";
   htmlCode += "     	</select>\n";
   htmlCode += "     	<input type=\"submit\" value=\"提交\" />\n";
   htmlCode += "     </form>\n</p>\n";
