@@ -13,7 +13,9 @@
 #include <EEPROM.h>
 #include <ArduinoOTA.h>
 // #include <ds18b20.h>
-#include <PubSubClient.h> //mqtt库
+#include <PubSubClient.h>     //mqtt库
+#include <ESP8266WebServer.h> // web服务器通信库需要使用
+#include <ESP8266HTTPUpdateServer.h>
 
 #include "font/ZdyLwFont_20.h" //字体头文件
 #include "font/FxLED_32.h"
@@ -90,6 +92,29 @@ const int mqtt_port = 1883;
 #define MQTT_TOPIC_CMD "esp8266/cmd"
 
 #define LED 16
+
+//---------------------http server 相关------------
+/* 2. 创建一个web服务器对象，使用80端口，HTTP网络服务器标准端口号即为80 */
+ESP8266WebServer esp8266_server(80);
+ESP8266HTTPUpdateServer httpUpdater;
+
+void handleNotFound();
+void handleRoot();
+void handle_Gif_Mode();
+//------------------------eeprom 参数-------------------------
+struct WifiConf
+{
+    char wifi_ssid[50];
+    char wifi_password[50];
+    // Make sure that there is a 0
+    // that terminatnes the c string
+    // if memory is not initalized yet.
+    char cstr_terminator = 0; // makse sure
+    u_int8_t gif_mode;
+};
+WifiConf wifiConf;
+void writeWifiConf(); // 写入eeprom wificonfig 参数
+//-------------------------------------------------
 
 WiFiClient esp_client;
 

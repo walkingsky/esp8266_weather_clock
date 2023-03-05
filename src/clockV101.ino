@@ -7,18 +7,6 @@
 
 #define VERSION "V101"
 
-struct WifiConf
-{
-  char wifi_ssid[50];
-  char wifi_password[50];
-  // Make sure that there is a 0
-  // that terminatnes the c string
-  // if memory is not initalized yet.
-  char cstr_terminator = 0; // makse sure
-  u_int8_t gif_mode;
-};
-WifiConf wifiConf;
-
 void readWifiConf() // 读取wifi配置
 {
   // Read wifi conf from flash
@@ -1271,6 +1259,70 @@ void setUpOverTheAirProgramming() // OAT升级
   ArduinoOTA.begin();
 }
 
+/* 3. 处理访问网站根目录“/”的访问请求 */
+void handleRoot()
+{
+  String htmlCode = "<!DOCTYPE html>\n";
+  htmlCode += " <html>\n";
+  htmlCode += "   <head>\n";
+  htmlCode += "     <meta charset=\"UTF-8\"/>\n";
+  htmlCode += "     <title>ESP8266控制</title>\n";
+  htmlCode += "   </head>\n";
+  htmlCode += "   <body>\n<div style=\"width:600px;margin:0 auto;\">\n";
+  htmlCode += "     <h2 align=\"center\">esp8266显示屏参数控制</h2>";
+  htmlCode += "     <p>\n<form action=\"/gifmode\" method=\"POST\">\n";
+  htmlCode += "       <a>设置动图样式：</a>\n";
+  htmlCode += "     	<select name=\"gifmode\">\n";
+  htmlCode += "   		<option value=\"1\">乒乓球</option>\n";
+  htmlCode += "   		<option value=\"2\">跳绳的龙猫</option>\n";
+  htmlCode += "   		<option value=\"3\">跳舞的龙猫</option>\n";
+  htmlCode += "   		<option value=\"4\">太空人</option>\n";
+  htmlCode += "   		<option value=\"5\">跑步的老头</option>\n";
+  htmlCode += "     	</select>\n";
+  htmlCode += "     	<input type=\"submit\" value=\"提交\" />\n";
+  htmlCode += "     </form>\n</p>\n";
+  htmlCode += "     </div>\n";
+  htmlCode += "   </body>\n";
+  htmlCode += "</html>\n";
+  esp8266_server.send(200, "text/html", htmlCode); // NodeMCU将调用此函数。
+}
+
+/* 4. 设置处理404情况的函数'handleNotFound' */
+void handleNotFound()
+{                                                           // 当浏览器请求的网络资源无法在服务器找到时，
+  esp8266_server.send(404, "text/plain", "404: Not found"); // NodeMCU将调用此函数。
+}
+
+/*设置 图片样式*/
+void handle_Gif_Mode()
+{
+  if (esp8266_server.hasArg("gifmode"))
+  {
+    int value = 0;
+    // esp8266_server.arg("gifmode").toCharArray(value, 1);
+    value = (int)esp8266_server.arg("gifmode").toInt();
+    Serial.printf("http server提交的gifmode 参数为%d\n", value);
+
+    // 直接返回一个数值，用来控制显示的图片
+    if (value > 0 && value < 6)
+    {
+      int old_mode = Gif_Mode;
+      Gif_Mode = value;
+      imgNum = 1;
+      if ((old_mode == 5 && Gif_Mode < 5) || (old_mode < 5 && Gif_Mode == 5))
+      {
+        // 切换背景色，切换字体颜色
+        change_color();
+        // 保存 Gif_Mode 到eeprom
+        wifiConf.gif_mode = Gif_Mode;
+        writeWifiConf();
+      }
+    }
+  }
+  esp8266_server.sendHeader("Location", "/", true); // Redirect to our html web page
+  esp8266_server.send(302, "text/plane", "");
+}
+
 void setup()
 {
   Serial.begin(115200); // 初始化串口
@@ -1352,6 +1404,14 @@ void setup()
 
   TJpgDec.drawJpg(161, 171, temperature, sizeof(temperature)); // 温度图标
   TJpgDec.drawJpg(159, 130, humidity, sizeof(humidity));       // 湿度图标
+
+  httpUpdater.setup(&esp8266_server);
+  /* 3. 开启http网络服务器功能 */
+  esp8266_server.begin();                    // 启动http网络服务器
+  esp8266_server.on("/", handleRoot);        // 设置请求根目录时的处理函数函数
+  esp8266_server.onNotFound(handleNotFound); // 设置无法响应时的处理函数
+
+  esp8266_server.on("/gifmode", handle_Gif_Mode); // 设置请求开灯目录时的处理函数函数
 }
 
 void loop()
@@ -1383,4 +1443,6 @@ void loop()
 
   // mqtt
   mqtt_client.loop();
+  // http server
+  esp8266_server.handleClient();
 }
