@@ -59,6 +59,7 @@ uint16_t bgColor = TFT_BLACK;     // 前景颜色
 String cityCode = "101010100";    // 天气城市代码 //通过geo服务自动获取城市后，这个设置可以随便配置了
 uint8_t Dis_Count = 0;            // 滚动显示内容计数
 String scrollText[6];             // 滚动显示的数据缓冲区
+String local_IP;                  // 本地的ip地址
 
 //---------------------NTP相关参数---------------------
 static const char ntpServerName[] = "ntp1.aliyun.com"; // NTP服务器
@@ -111,6 +112,7 @@ struct WifiConf
     // if memory is not initalized yet.
     char cstr_terminator = 0; // makse sure
     u_int8_t gif_mode;
+    uint16_t frontColor;
 };
 WifiConf wifiConf;
 void writeWifiConf(); // 写入eeprom wificonfig 参数

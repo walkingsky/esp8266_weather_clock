@@ -70,6 +70,7 @@ void connect_wifi() // 联网
   Serial.println(wifiConf.wifi_ssid);
   Serial.print("IP:   ");
   Serial.println(WiFi.localIP()); // 得到IP地址
+  local_IP = WiFi.localIP().toString();
 }
 
 void digitalClockDisplay() // 时间显示
@@ -1143,6 +1144,7 @@ bool smart_config()
   SmartConfigStatus = 4;
   Serial.print("IP Address: ");
   Serial.println(WiFi.localIP()); // 串口输出现在的IP地址
+  local_IP = WiFi.localIP().toString();
   // WiFi.mode(WIFI_AP_STA);         // 这里将模式设置回AP和STA双模式，不设置亲测也是可以的，但是不能只设置为AP模式，要不然联网后没办法连上互联网。
   delay(5);
   strcpy(wifiConf.wifi_ssid, WiFi.SSID().c_str());
@@ -1155,25 +1157,25 @@ void change_color()
 {
   if (Gif_Mode == 5)
   {
-    frontColor = TFT_YELLOW; // 背景颜色
-    bgColor = TFT_BLACK;     // 前景颜色
+    // frontColor = TFT_YELLOW; // 背景颜色
+    bgColor = TFT_BLACK; // 前景颜色
   }
   else
   {
-    frontColor = TFT_BLACK; // 背景颜色
-    bgColor = 0xFFFF;       // 前景颜色
+    // frontColor = TFT_BLACK; // 背景颜色
+    bgColor = 0xFFFF; // 前景颜色
   }
 
-  tft.fillScreen(0x0000);                // 清屏
-  tft.setTextColor(frontColor, bgColor); // 设置字体颜色
+  // tft.fillScreen(0x0000);                // 清屏
+  // tft.setTextColor(frontColor, bgColor); // 设置字体颜色
 
-  TJpgDec.drawJpg(0, 0, watchtop, sizeof(watchtop));         // 显示顶部图标 240*20
-  TJpgDec.drawJpg(0, 220, watchbottom, sizeof(watchbottom)); // 显示底部图标 240*20
+  // TJpgDec.drawJpg(0, 0, watchtop, sizeof(watchtop));         // 显示顶部图标 240*20
+  // TJpgDec.drawJpg(0, 220, watchbottom, sizeof(watchbottom)); // 显示底部图标 240*20
 
   // 绘制一个窗口
-  tft.setViewport(0, 20, 240, 200);              // 中间的显示区域大小
+  tft.setViewport(0, 20, 240, 202);              // 中间的显示区域大小
   tft.fillScreen(0x0000);                        // 清屏
-  tft.fillRoundRect(0, 0, 240, 200, 5, bgColor); // 实心圆角矩形
+  tft.fillRoundRect(0, 0, 240, 202, 5, bgColor); // 实心圆角矩形
   // tft.resetViewport();
 
   // 绘制线框
@@ -1182,6 +1184,7 @@ void change_color()
   tft.drawFastHLine(0, 166, 240, frontColor);
   tft.drawFastVLine(60, 166, 34, frontColor);
   tft.drawFastVLine(160, 166, 34, frontColor);
+  tft.drawFastHLine(0, 202, 240, frontColor);
 
   getCityCode(); // 通过IP地址获取城市代码
 
@@ -1296,6 +1299,16 @@ void handleRoot()
   htmlCode += "     	</select>\n";
   htmlCode += "     	<input type=\"submit\" value=\"提交\" />\n";
   htmlCode += "     </form>\n</p>\n";
+  htmlCode += "     <h2 align=\"center\">设置字体颜色(RGB)</h2>";
+  htmlCode += "     <p>\n<form action=\"/color\" method=\"POST\">\n";
+  htmlCode += "       <p><a>字体颜色RED(0-255)：</a>\n";
+  htmlCode += "     	<input  name=\"red\" value=\"0\" \/>\n</p>\n";
+  htmlCode += "       <p><a>字体颜色GREEN(0-255)：</a>\n";
+  htmlCode += "     	<input  name=\"green\" value=\"0\" \/>\n</p>\n";
+  htmlCode += "       <p><a>字体颜色BLUE(0-255)：</a>\n";
+  htmlCode += "     	<input  name=\"blue\" value=\"0\" \/>\n</p>\n";
+  htmlCode += "     	<input type=\"submit\" value=\"设置\" />\n";
+  htmlCode += "     </form>\n</p>\n";
   htmlCode += "     <h2 align=\"center\">重启设备</h2>";
   htmlCode += "     <p>\n<form action=\"/restart\" method=\"POST\">\n";
   htmlCode += "       <a>点击按钮重启设备：</a>\n";
@@ -1314,7 +1327,7 @@ void handleNotFound()
   esp8266_server.send(404, "text/plain", "404: Not found"); // NodeMCU将调用此函数。
 }
 
-/*设置 图片样式*/
+/*HTTP server设置 图片样式*/
 void handle_Gif_Mode()
 {
   if (esp8266_server.hasArg("gifmode"))
@@ -1344,6 +1357,30 @@ void handle_Gif_Mode()
   esp8266_server.send(302, "text/plane", "");
 }
 
+// http server 设置字体颜色响应
+void handle_color()
+{
+  esp8266_server.sendHeader("Location", "/", true); // Redirect to our html web page
+  esp8266_server.send(302, "text/plane", "");
+  if (esp8266_server.hasArg("red") && esp8266_server.hasArg("green") && esp8266_server.hasArg("blue"))
+  {
+    int red = 0, green = 0, blue = 0;
+    red = esp8266_server.arg("red").toInt();
+    green = esp8266_server.arg("green").toInt();
+    blue = esp8266_server.arg("blue").toInt();
+
+    if (red < 256 && red >= 0 && green < 256 && green >= 0 && blue < 256 && blue >= 0) // 判断参数
+    {
+      frontColor = (((red & 0xf8) >> 3) << 11) + (((green & 0xfc) >> 2) << 5) + ((blue & 0xf8) >> 3);
+      wifiConf.frontColor = frontColor;
+      writeWifiConf();
+      // getCityWeater();
+      change_color();
+    }
+  }
+}
+
+// http server重启响应
 void handle_restart()
 {
   esp8266_server.sendHeader("Location", "/", true); // Redirect to our html web page
@@ -1365,26 +1402,22 @@ void setup()
   Serial.begin(115200); // 初始化串口
   Serial.println();     // 打印回车换行
 
+  EEPROM.begin(512); // 读取eeprom配置
+  readWifiConf();
+
+  if (0 <= wifiConf.frontColor && 65535)
+    frontColor = wifiConf.frontColor;
+  else
+    frontColor = TFT_RED;
+
   tft.init();                            // TFT初始化
   tft.setRotation(2);                    // 旋转角度0-3
   tft.fillScreen(0x0000);                // 清屏
   tft.setTextColor(frontColor, bgColor); // 设置字体颜色
 
-  EEPROM.begin(512);
-  readWifiConf();
   connect_wifi(); // 联网处理
 
   Gif_Mode = wifiConf.gif_mode;
-  if (Gif_Mode == 5)
-  {
-    frontColor = TFT_YELLOW; // 背景颜色
-    bgColor = TFT_BLACK;     // 前景颜色
-  }
-  else
-  {
-    frontColor = TFT_BLACK; // 背景颜色
-    bgColor = 0xFFFF;       // 前景颜色
-  }
 
   // 连接mqtt服务器
   mqtt_client.setServer(mqtt_broker, mqtt_port);
@@ -1421,26 +1454,26 @@ void setup()
   TJpgDec.setSwapBytes(true);      // 交换字节
   TJpgDec.setCallback(tft_output); // 回调函数
 
-  TJpgDec.drawJpg(0, 0, watchtop, sizeof(watchtop));         // 显示顶部图标 240*20
-  TJpgDec.drawJpg(0, 220, watchbottom, sizeof(watchbottom)); // 显示底部图标 240*20
+  TJpgDec.drawJpg(0, 0, watchtop, sizeof(watchtop)); // 显示顶部图标 240*20
+  // TJpgDec.drawJpg(0, 220, watchbottom, sizeof(watchbottom)); // 显示底部图标 240*20
 
-  // 绘制一个窗口
-  tft.setViewport(0, 20, 240, 200);              // 中间的显示区域大小
-  tft.fillScreen(0x0000);                        // 清屏
-  tft.fillRoundRect(0, 0, 240, 200, 5, bgColor); // 实心圆角矩形
-  // tft.resetViewport();
+  // 底部显示ip的区域
+  clk.loadFont(ZdyLwFont_20); // 加载汉字字体
+  tft.setViewport(0, 222, 240, 18);
+  tft.fillScreen(TFT_BLACK); // 黑色背景
+  // IP显示
+  clk.createSprite(240, 18); // 创建Sprite
+  // clk.fillSprite(frontColor);               // 填充颜色
+  clk.setTextDatum(CC_DATUM);               // 显示对齐方式
+  clk.setTextColor(TFT_WHITE, TFT_BLACK);   // 文本的前景色和背景色
+  clk.drawString("IP:" + local_IP, 80, 10); // 显示文本
+  clk.pushSprite(0, 0);                     // Sprite中内容一次推向屏幕
+  clk.deleteSprite();                       // 删除Sprite
+  tft.resetViewport();
 
-  // 绘制线框
-  tft.drawFastHLine(0, 34, 240, frontColor); // 这些坐标都是窗体内部坐标
-  tft.drawFastVLine(150, 0, 34, frontColor);
-  tft.drawFastHLine(0, 166, 240, frontColor);
-  tft.drawFastVLine(60, 166, 34, frontColor);
-  tft.drawFastVLine(160, 166, 34, frontColor);
+  clk.unloadFont(); // 卸载字体
 
-  getCityCode(); // 通过IP地址获取城市代码
-
-  TJpgDec.drawJpg(161, 171, temperature, sizeof(temperature)); // 温度图标
-  TJpgDec.drawJpg(159, 130, humidity, sizeof(humidity));       // 湿度图标
+  change_color();
 
   httpUpdater.setup(&esp8266_server);
   /* 3. 开启http网络服务器功能 */
@@ -1450,6 +1483,7 @@ void setup()
 
   esp8266_server.on("/gifmode", handle_Gif_Mode); // 设置请求开灯目录时的处理函数函数
   esp8266_server.on("/restart", handle_restart);  // 设置请求开灯目录时的处理函数函数
+  esp8266_server.on("/color", handle_color);      // 设置请求开灯目录时的处理函数函数
 }
 
 void loop()
