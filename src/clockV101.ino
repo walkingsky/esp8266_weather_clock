@@ -1296,6 +1296,12 @@ void handleRoot()
   htmlCode += "     	</select>\n";
   htmlCode += "     	<input type=\"submit\" value=\"提交\" />\n";
   htmlCode += "     </form>\n</p>\n";
+  htmlCode += "     <h2 align=\"center\">重启设备</h2>";
+  htmlCode += "     <p>\n<form action=\"/restart\" method=\"POST\">\n";
+  htmlCode += "       <a>点击按钮重启设备：</a>\n";
+  htmlCode += "     	<input type=\"hidden\" name=\"restart\" value=\"yes\" \/>\n";
+  htmlCode += "     	<input type=\"submit\" value=\"确认重启\" />\n";
+  htmlCode += "     </form>\n</p>\n";
   htmlCode += "     </div>\n";
   htmlCode += "   </body>\n";
   htmlCode += "</html>\n";
@@ -1336,6 +1342,22 @@ void handle_Gif_Mode()
   }
   esp8266_server.sendHeader("Location", "/", true); // Redirect to our html web page
   esp8266_server.send(302, "text/plane", "");
+}
+
+void handle_restart()
+{
+  esp8266_server.sendHeader("Location", "/", true); // Redirect to our html web page
+  esp8266_server.send(302, "text/plane", "");
+  if (esp8266_server.hasArg("restart"))
+  {
+    int restart = 2;
+    restart = esp8266_server.arg("restart").compareTo("yes");
+    if (restart == 0)
+    {
+      delay(1000); // 等待1s让浏览器得到返回结果
+      ESP.restart();
+    }
+  }
 }
 
 void setup()
@@ -1427,6 +1449,7 @@ void setup()
   esp8266_server.onNotFound(handleNotFound); // 设置无法响应时的处理函数
 
   esp8266_server.on("/gifmode", handle_Gif_Mode); // 设置请求开灯目录时的处理函数函数
+  esp8266_server.on("/restart", handle_restart);  // 设置请求开灯目录时的处理函数函数
 }
 
 void loop()
