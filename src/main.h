@@ -110,8 +110,9 @@ struct WifiConf
     // Make sure that there is a 0
     // that terminatnes the c string
     // if memory is not initalized yet.
+    char city_id[10];
     char cstr_terminator = 0; // makse sure
-    u_int8_t gif_mode;
+    uint16_t gif_mode;
     uint16_t frontColor;
 };
 WifiConf wifiConf;

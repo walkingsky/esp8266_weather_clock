@@ -222,6 +222,13 @@ bool tft_output(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t *bitmap) 
 
 void getCityCode() // 发送HTTP请求并且将服务器响应通过串口输出
 {
+  String citycode = wifiConf.city_id;
+  if (citycode.startsWith("101") && citycode.length() == 9) // 判断配置的citycode是否可用，不可用就通过天气网的geo获取
+  {
+    cityCode = citycode;
+    getCityWeater(); // 获取天气信息
+    return;
+  }
   String URL = "http://wgeo.weather.com.cn/ip/?_=" + String(now());
 
   httpClient.begin(wifiClient, URL);  // 配置请求地址。此处也可以不使用端口号和PATH而单纯的
@@ -1265,6 +1272,10 @@ void setUpOverTheAirProgramming() // OAT升级
 /* 3. 处理访问网站根目录“/”的访问请求 */
 void handleRoot()
 {
+  // 565 转rgb
+  int color_red = ((frontColor >> 11) & 0xff) << 3;
+  int color_green = ((frontColor >> 5) & 0x3f) << 2;
+  int color_blue = (frontColor & 0x1f) << 3;
   String htmlCode = "<!DOCTYPE html>\n";
   htmlCode += " <html>\n";
   htmlCode += "   <head>\n";
@@ -1299,20 +1310,26 @@ void handleRoot()
   htmlCode += "     	</select>\n";
   htmlCode += "     	<input type=\"submit\" value=\"提交\" />\n";
   htmlCode += "     </form>\n</p>\n";
+  htmlCode += "     <h2 align=\"center\">设置天气网城市代码</h2>";
+  htmlCode += "     <p>\n<form action=\"/city\" method=\"POST\">\n";
+  htmlCode += "       <p><a>城市代码(9位数字)</a>\n";
+  htmlCode += "     	<input  name=\"citycode\" value=\"" + String(wifiConf.city_id) + "\" />\n</p>\n";
+  htmlCode += "     	<input type=\"submit\" value=\"设置\" />\n";
+  htmlCode += "     </form>\n</p>\n";
   htmlCode += "     <h2 align=\"center\">设置字体颜色(RGB)</h2>";
   htmlCode += "     <p>\n<form action=\"/color\" method=\"POST\">\n";
   htmlCode += "       <p><a>字体颜色RED(0-255)：</a>\n";
-  htmlCode += "     	<input  name=\"red\" value=\"0\" \/>\n</p>\n";
+  htmlCode += "     	<input  name=\"red\" value=\"" + String(color_red) + "\" />\n</p>\n";
   htmlCode += "       <p><a>字体颜色GREEN(0-255)：</a>\n";
-  htmlCode += "     	<input  name=\"green\" value=\"0\" \/>\n</p>\n";
+  htmlCode += "     	<input  name=\"green\" value=\"" + String(color_green) + "\" />\n</p>\n";
   htmlCode += "       <p><a>字体颜色BLUE(0-255)：</a>\n";
-  htmlCode += "     	<input  name=\"blue\" value=\"0\" \/>\n</p>\n";
+  htmlCode += "     	<input  name=\"blue\" value=\"" + String(color_blue) + "\" />\n</p>\n";
   htmlCode += "     	<input type=\"submit\" value=\"设置\" />\n";
   htmlCode += "     </form>\n</p>\n";
   htmlCode += "     <h2 align=\"center\">重启设备</h2>";
   htmlCode += "     <p>\n<form action=\"/restart\" method=\"POST\">\n";
   htmlCode += "       <a>点击按钮重启设备：</a>\n";
-  htmlCode += "     	<input type=\"hidden\" name=\"restart\" value=\"yes\" \/>\n";
+  htmlCode += "     	<input type=\"hidden\" name=\"restart\" value=\"yes\" />\n";
   htmlCode += "     	<input type=\"submit\" value=\"确认重启\" />\n";
   htmlCode += "     </form>\n</p>\n";
   htmlCode += "     </div>\n";
@@ -1371,11 +1388,29 @@ void handle_color()
 
     if (red < 256 && red >= 0 && green < 256 && green >= 0 && blue < 256 && blue >= 0) // 判断参数
     {
+      // rgb 转565色值
       frontColor = (((red & 0xf8) >> 3) << 11) + (((green & 0xfc) >> 2) << 5) + ((blue & 0xf8) >> 3);
       wifiConf.frontColor = frontColor;
       writeWifiConf();
       // getCityWeater();
       change_color();
+    }
+  }
+}
+
+void handle_citycode()
+{
+  esp8266_server.sendHeader("Location", "/", true); // Redirect to our html web page
+  esp8266_server.send(302, "text/plane", "");
+  if (esp8266_server.hasArg("citycode"))
+  {
+    String citycode = esp8266_server.arg("citycode");
+    if (citycode.startsWith("101") && citycode.length() == 9)
+    {
+      strcpy(wifiConf.city_id, citycode.c_str());
+      writeWifiConf();
+      cityCode = citycode;
+      getCityCode();
     }
   }
 }
@@ -1481,9 +1516,10 @@ void setup()
   esp8266_server.on("/", handleRoot);        // 设置请求根目录时的处理函数函数
   esp8266_server.onNotFound(handleNotFound); // 设置无法响应时的处理函数
 
-  esp8266_server.on("/gifmode", handle_Gif_Mode); // 设置请求开灯目录时的处理函数函数
-  esp8266_server.on("/restart", handle_restart);  // 设置请求开灯目录时的处理函数函数
-  esp8266_server.on("/color", handle_color);      // 设置请求开灯目录时的处理函数函数
+  esp8266_server.on("/gifmode", handle_Gif_Mode); // 处理动图类型的url响应函数
+  esp8266_server.on("/restart", handle_restart);  // 处理软件复位的url响应函数
+  esp8266_server.on("/color", handle_color);      // 处理设置字体颜色的url响应函数
+  esp8266_server.on("/city", handle_citycode);    // 处理设置城市代码响应函数
 }
 
 void loop()
