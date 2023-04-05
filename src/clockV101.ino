@@ -7,6 +7,8 @@
 
 #define VERSION "V101"
 
+DHT_Unified dht(DHTPIN, DHTTYPE); // 温湿度传感器
+
 void readWifiConf() // 读取wifi配置
 {
   // Read wifi conf from flash
@@ -41,8 +43,8 @@ void connect_wifi() // 联网
       PowerOn_Loading(50);
     }
     cnt = cnt + 1;
-    // Serial.print("cnt:");
-    // Serial.println(cnt);
+    Serial.print("cnt:");
+    Serial.println(cnt);
     if (cnt > wifi_connect_cnt)
     {
       Serial.print("\n超过重试次数");
@@ -314,18 +316,28 @@ void weaterData(String *cityDZ, String *dataSK, String *dataFC) // 天气信息�
   DynamicJsonDocument doc(512);
   deserializeJson(doc, *dataSK);
   JsonObject sk = doc.as<JsonObject>();
+  String temp_str = sk["temp"].as<String>() + "℃";
+  String hum_str = sk["SD"].as<String>();
 
   clk.setColorDepth(8);
   clk.loadFont(ZdyLwFont_20); // 加载汉字字体
 
   // 温度显示
-  clk.createSprite(54, 32);                              // 创建Sprite
-  clk.fillSprite(bgColor);                               // 填充颜色
-  clk.setTextDatum(CC_DATUM);                            // 显示对齐方式
-  clk.setTextColor(frontColor, bgColor);                 // 文本的前景色和背景色
-  clk.drawString(sk["temp"].as<String>() + "℃", 27, 16); // 显示文本
-  clk.pushSprite(185, 168);                              // Sprite中内容一次推向屏幕
-  clk.deleteSprite();                                    // 删除Sprite
+  clk.createSprite(54, 32);              // 创建Sprite
+  clk.fillSprite(bgColor);               // 填充颜色
+  clk.setTextDatum(CC_DATUM);            // 显示对齐方式
+  clk.setTextColor(frontColor, bgColor); // 文本的前景色和背景色
+  if (temperature_log[0] == '-')
+    clk.drawString(temp_str, 27, 16); // 显示文本
+  else
+  {
+    // clk.drawString(temperature_log, 27, 16);    // 显示文本
+    clk.unloadFont();
+    clk.drawString(temperature_log, 30, 16, 2); // 显示文本
+    clk.loadFont(ZdyLwFont_20);
+  }
+  clk.pushSprite(185, 168); // Sprite中内容一次推向屏幕
+  clk.deleteSprite();       // 删除Sprite
 
   // 城市名称显示
   clk.createSprite(88, 32);
@@ -374,7 +386,15 @@ void weaterData(String *cityDZ, String *dataSK, String *dataFC) // 天气信息�
   clk.fillSprite(bgColor);
   clk.setTextDatum(CC_DATUM);
   clk.setTextColor(frontColor, bgColor);
-  clk.drawString(sk["SD"].as<String>(), 28, 13);
+  if (relative_humidity_log[0] == '-')
+    clk.drawString(hum_str, 28, 13);
+  else
+  {
+    clk.unloadFont();
+    clk.drawString(relative_humidity_log, 30, 13, 2);
+    clk.loadFont(ZdyLwFont_20);
+  }
+
   // clk.drawString("100%",28,13);
   clk.pushSprite(180, 130);
   clk.deleteSprite();
@@ -386,15 +406,17 @@ void weaterData(String *cityDZ, String *dataSK, String *dataFC) // 天气信息�
   // 左上角滚动字幕
   deserializeJson(doc, *cityDZ);
   JsonObject dz = doc.as<JsonObject>();
-  // Serial.println(sk["ws"].as<String>());
-  // String aa = "今日天气:" + dz["weather"].as<String>() + "，温度:最低" + dz["tempn"].as<String>() + "，最高" + dz["temp"].as<String>() + " 空气质量:" + aqiTxt + "，风向:" + dz["wd"].as<String>() + dz["ws"].as<String>();
-  // Serial.println(aa);
+  Serial.println(sk["ws"].as<String>());
+
   scrollText[3] = "今日" + dz["weather"].as<String>();
 
   deserializeJson(doc, *dataFC);
   JsonObject fc = doc.as<JsonObject>();
   scrollText[4] = "最低温度" + fc["fd"].as<String>() + "℃";
   scrollText[5] = "最高温度" + fc["fc"].as<String>() + "℃";
+
+  scrollText[6] = "室外温度" + temp_str;
+  scrollText[7] = "室外湿度" + hum_str;
 
   clk.unloadFont(); // 卸载字体
 }
@@ -428,7 +450,7 @@ void scrollBanner() // 天气滚动条显示
         return;
       }
       clkb.unloadFont(); // 卸载字体
-      if (Dis_Count >= 5)
+      if (Dis_Count >= 7)
       {                // 总共显示五条信息
         Dis_Count = 0; // 回第一个
       }
@@ -436,7 +458,7 @@ void scrollBanner() // 天气滚动条显示
       {
         Dis_Count += 1; // 准备切换到下一个
       }
-      // Serial.println(Dis_Count);
+      Serial.println(Dis_Count);
     }
     LastTime1 = now1;
   }
@@ -1283,6 +1305,7 @@ void handleRoot()
   htmlCode += "     <title>ESP8266控制</title>\n";
   htmlCode += "   </head>\n";
   htmlCode += "   <body>\n<div style=\"width:600px;margin:0 auto;\">\n";
+  htmlCode += "       <p><a style='color:blue'>当前温度：(" + String(temperature_log) + ")当前湿度：(" + String(relative_humidity_log) + ")</a></p>\n";
   htmlCode += "     <h2 align=\"center\">esp8266显示屏参数控制</h2>";
   htmlCode += "     <p>\n<form action=\"/gifmode\" method=\"POST\">\n";
   htmlCode += "       <a>设置动图样式：</a>\n";
@@ -1432,6 +1455,120 @@ void handle_restart()
   }
 }
 
+/*初始化 dht11 温湿度传感器*/
+void dht_init()
+{
+  // 关闭串口
+  // Serial.end();
+  dht.begin();
+  // Print temperature sensor details.
+  sensor_t sensor;
+  dht.temperature().getSensor(&sensor);
+
+  // Serial.begin(115200);
+  /*
+  Serial.println(F("------------------------------------"));
+  Serial.println(F("Temperature Sensor"));
+  Serial.print(F("Sensor Type: "));
+  Serial.println(sensor.name);
+  Serial.print(F("Driver Ver:  "));
+  Serial.println(sensor.version);
+  Serial.print(F("Unique ID:   "));
+  Serial.println(sensor.sensor_id);
+  Serial.print(F("Max Value:   "));
+  Serial.print(sensor.max_value);
+  Serial.println(F("°C"));
+  Serial.print(F("Min Value:   "));
+  Serial.print(sensor.min_value);
+  Serial.println(F("°C"));
+  Serial.print(F("Resolution:  "));
+  Serial.print(sensor.resolution);
+  Serial.println(F("°C"));
+  Serial.println(F("------------------------------------"));
+  */
+  // Print humidity sensor details.
+  dht.humidity().getSensor(&sensor);
+  /*
+  Serial.println(F("Humidity Sensor"));
+  Serial.print(F("Sensor Type: "));
+  Serial.println(sensor.name);
+  Serial.print(F("Driver Ver:  "));
+  Serial.println(sensor.version);
+  Serial.print(F("Unique ID:   "));
+  Serial.println(sensor.sensor_id);
+  Serial.print(F("Max Value:   "));
+  Serial.print(sensor.max_value);
+  Serial.println(F("%"));
+  Serial.print(F("Min Value:   "));
+  Serial.print(sensor.min_value);
+  Serial.println(F("%"));
+  Serial.print(F("Resolution:  "));
+  Serial.print(sensor.resolution);
+  Serial.println(F("%"));
+  Serial.println(F("------------------------------------"));
+  */
+}
+
+/*循环获取温湿度*/
+void dht_loop(bool in_loop)
+{
+  if (in_loop && (millis() - LastTime5 < 20000)) // 延时2秒
+    return;
+  LastTime5 = millis();
+
+  memset(temperature_log, 0, sizeof(temperature_log));
+  memset(relative_humidity_log, 0, sizeof(relative_humidity_log));
+  // Get temperature event and print its value.
+  sensors_event_t event;
+  dht.temperature().getEvent(&event);
+  if (isnan(event.temperature))
+  {
+    Serial.println(F("Error reading temperature!"));
+    sprintf(temperature_log, "-°C");
+  }
+  else
+  {
+    Serial.print(F("Temperature: "));
+    Serial.print(event.temperature);
+    Serial.println(F("°C"));
+    temperature1 = event.temperature;
+    sprintf(temperature_log, "%.2f°C", temperature1);
+
+    // 温度显示
+    clk.createSprite(54, 32);                   // 创建Sprite
+    clk.fillSprite(bgColor);                    // 填充颜色
+    clk.setTextDatum(CC_DATUM);                 // 显示对齐方式
+    clk.setTextColor(frontColor, bgColor);      // 文本的前景色和背景色
+    clk.drawString(temperature_log, 30, 16, 2); // 显示文本
+    clk.pushSprite(185, 168);                   // Sprite中内容一次推向屏幕
+    clk.deleteSprite();
+  }
+  // Get humidity event and print its value.
+  dht.humidity().getEvent(&event);
+  if (isnan(event.relative_humidity))
+  {
+    Serial.println(F("Error reading humidity!"));
+    sprintf(relative_humidity_log, "-%%");
+  }
+  else
+  {
+    Serial.print(F("Humidity: "));
+    Serial.print(event.relative_humidity);
+    Serial.println(F("%"));
+    relative_humidity1 = event.relative_humidity;
+    sprintf(relative_humidity_log, "%.2f%%", relative_humidity1);
+
+    // 湿度显示
+    clk.createSprite(54, 32);                         // 创建Sprite
+    clk.fillSprite(bgColor);                          // 填充颜色
+    clk.setTextDatum(CC_DATUM);                       // 显示对齐方式
+    clk.setTextColor(frontColor, bgColor);            // 文本的前景色和背景色
+    clk.drawString(relative_humidity_log, 30, 13, 2); // 显示文本
+    clk.pushSprite(180, 130);                         // Sprite中内容一次推向屏幕
+    clk.deleteSprite();
+  }
+}
+
 void setup()
 {
   Serial.begin(115200); // 初始化串口
@@ -1439,6 +1576,8 @@ void setup()
 
   EEPROM.begin(512); // 读取eeprom配置
   readWifiConf();
+
+  dht_init(); // 初始化温湿度传感器
 
   if (0 <= wifiConf.frontColor && 65535)
     frontColor = wifiConf.frontColor;
@@ -1499,14 +1638,16 @@ void setup()
   // IP显示
   clk.createSprite(240, 18); // 创建Sprite
   // clk.fillSprite(frontColor);               // 填充颜色
-  clk.setTextDatum(CC_DATUM);               // 显示对齐方式
-  clk.setTextColor(TFT_WHITE, TFT_BLACK);   // 文本的前景色和背景色
-  clk.drawString("IP:" + local_IP, 80, 10); // 显示文本
-  clk.pushSprite(0, 0);                     // Sprite中内容一次推向屏幕
-  clk.deleteSprite();                       // 删除Sprite
+  clk.setTextDatum(CL_DATUM);              // 显示对齐方式
+  clk.setTextColor(TFT_WHITE, TFT_BLACK);  // 文本的前景色和背景色
+  clk.drawString("IP:" + local_IP, 5, 10); // 显示文本
+  clk.pushSprite(0, 0);                    // Sprite中内容一次推向屏幕
+  clk.deleteSprite();                      // 删除Sprite
   tft.resetViewport();
 
   clk.unloadFont(); // 卸载字体
+
+  dht_loop(false); // 立即获取一次温湿度
 
   change_color();
 
@@ -1524,6 +1665,7 @@ void setup()
 
 void loop()
 {
+
   if (timeStatus() != timeNotSet)
   { // 已经获取到数据的话
     if (now() != prevDisplay)
@@ -1532,6 +1674,8 @@ void loop()
       digitalClockDisplay();
     }
   }
+  // dht11 温湿度传感器
+  dht_loop(true);
 
   if (millis() - LastTime2 > 600000)
   { // 10分钟更新一次天气

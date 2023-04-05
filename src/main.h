@@ -16,6 +16,16 @@
 #include <PubSubClient.h>     //mqtt库
 #include <ESP8266WebServer.h> // web服务器通信库需要使用
 #include <ESP8266HTTPUpdateServer.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+
+#define DHTPIN 3 // Digital pin connected to the DHT sensor
+// Feather HUZZAH ESP8266 note: use pins 3, 4, 5, 12, 13 or 14 --
+// Pin 15 can work but DHT must be disconnected during program upload.
+
+// Uncomment the type of sensor in use:
+#define DHTTYPE DHT11 // DHT 11
 
 #include "font/ZdyLwFont_20.h" //字体头文件
 #include "font/FxLED_32.h"
@@ -58,7 +68,7 @@ uint16_t frontColor = TFT_YELLOW; // 背景颜色
 uint16_t bgColor = TFT_BLACK;     // 前景颜色
 String cityCode = "101010100";    // 天气城市代码 //通过geo服务自动获取城市后，这个设置可以随便配置了
 uint8_t Dis_Count = 0;            // 滚动显示内容计数
-String scrollText[6];             // 滚动显示的数据缓冲区
+String scrollText[8];             // 滚动显示的数据缓冲区
 String local_IP;                  // 本地的ip地址
 
 //---------------------NTP相关参数---------------------
@@ -80,6 +90,8 @@ unsigned long LastTime2 = 0;
 unsigned long LastTime3 = 0;
 unsigned long now3;
 unsigned long LastTime4 = 0; //
+
+unsigned long LastTime5 = 0; // dht11 传感器获取时间间隔
 
 //-------------------------mqtt 相关-----------
 // MQTT Broker
@@ -118,6 +130,11 @@ struct WifiConf
 WifiConf wifiConf;
 void writeWifiConf(); // 写入eeprom wificonfig 参数
 //-------------------------------------------------
+
+char temperature_log[10] = {'-'};
+char relative_humidity_log[10] = {'-'};
+float temperature1 = 0;
+float relative_humidity1 = 0;
 
 WiFiClient esp_client;
 
