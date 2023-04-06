@@ -1512,7 +1512,7 @@ void dht_init()
 /*循环获取温湿度*/
 void dht_loop(bool in_loop)
 {
-  if (in_loop && (millis() - LastTime5 < 20000)) // 延时2秒
+  if (in_loop && (millis() - LastTime5 < 2000)) // 延时2秒
     return;
   LastTime5 = millis();
 
@@ -1632,20 +1632,20 @@ void setup()
   // TJpgDec.drawJpg(0, 220, watchbottom, sizeof(watchbottom)); // 显示底部图标 240*20
 
   // 底部显示ip的区域
-  clk.loadFont(ZdyLwFont_20); // 加载汉字字体
+  // clk.loadFont(ZdyLwFont_20); // 加载汉字字体
   tft.setViewport(0, 222, 240, 18);
   tft.fillScreen(TFT_BLACK); // 黑色背景
   // IP显示
   clk.createSprite(240, 18); // 创建Sprite
   // clk.fillSprite(frontColor);               // 填充颜色
-  clk.setTextDatum(CL_DATUM);              // 显示对齐方式
-  clk.setTextColor(TFT_WHITE, TFT_BLACK);  // 文本的前景色和背景色
-  clk.drawString("IP:" + local_IP, 5, 10); // 显示文本
-  clk.pushSprite(0, 0);                    // Sprite中内容一次推向屏幕
-  clk.deleteSprite();                      // 删除Sprite
+  clk.setTextDatum(CL_DATUM);                 // 显示对齐方式
+  clk.setTextColor(TFT_WHITE, TFT_BLACK);     // 文本的前景色和背景色
+  clk.drawString("IP:" + local_IP, 5, 10, 2); // 显示文本
+  clk.pushSprite(0, 0);                       // Sprite中内容一次推向屏幕
+  clk.deleteSprite();                         // 删除Sprite
   tft.resetViewport();
 
-  clk.unloadFont(); // 卸载字体
+  // clk.unloadFont(); // 卸载字体
 
   dht_loop(false); // 立即获取一次温湿度
 
